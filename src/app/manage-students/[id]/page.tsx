@@ -4,14 +4,16 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSubjects } from "../../../utils/storage";
 
+interface ManageStudentsRedirectProps {
+  params: {
+    id: string;
+  };
+}
+
 export default function ManageStudentsRedirect({
   params,
-}: {
-  params: { id: string };
-}) {
-  // Access the ID directly from params
+}: ManageStudentsRedirectProps) {
   const subjectId = params.id;
-
   const router = useRouter();
 
   useEffect(() => {
