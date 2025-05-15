@@ -1,0 +1,414 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { FaArrowLeft } from "react-icons/fa";
+import {
+  Subject,
+  Class,
+  Student,
+  PresentationSession,
+  TimerType,
+  TIMER_CONFIGURATIONS,
+} from "../../../../../models/Types";
+import DiceRoll from "../../../../../components/DiceRoll";
+import Timer from "../../../../../components/Timer";
+import {
+  getSubjects,
+  getSession,
+  saveSession,
+  clearSession,
+} from "../../../../../utils/storage";
+import { selectRandomStudent } from "../../../../../utils/helpers";
+
+// Presentation workflow states
+enum WorkflowState {
+  START = "start",
+  SELECTING_PRESENTER = "selecting_presenter",
+  PRESENTATION = "presentation",
+  SELECTING_FEEDBACK_GIVER = "selecting_feedback_giver",
+  STUDENT_FEEDBACK = "student_feedback",
+  LECTURER_FEEDBACK = "lecturer_feedback",
+  REFLECTION = "reflection",
+  SUMMARY = "summary",
+}
+
+export default function ClassPage({
+  params,
+}: {
+  params: { subjectId: string; classId: string };
+}) {
+  // Properly unwrap params using React.use() - explicit casting to handle TypeScript
+  const unwrappedParams = React.use(params as any) as {
+    subjectId: string;
+    classId: string;
+  };
+  const currentSubjectId = unwrappedParams.subjectId;
+  const currentClassId = unwrappedParams.classId;
+
+  const [subject, setSubject] = useState<Subject | null>(null);
+  const [currentClass, setCurrentClass] = useState<Class | null>(null);
+  const [session, setSession] = useState<PresentationSession | null>(null);
+  const [workflowState, setWorkflowState] = useState<WorkflowState>(
+    WorkflowState.START
+  );
+  const router = useRouter();
+
+  // Load data
+  useEffect(() => {
+    const subjects = getSubjects();
+    const foundSubject = subjects.find((s) => s.id === currentSubjectId);
+
+    if (foundSubject) {
+      setSubject(foundSubject);
+      const foundClass = foundSubject.classes.find(
+        (c) => c.id === currentClassId
+      );
+
+      if (foundClass) {
+        setCurrentClass(foundClass);
+        // Check if there's an active session
+        const activeSession = getSession();
+        if (activeSession && activeSession.classId === currentClassId) {
+          setSession(activeSession);
+          // Determine the workflow state based on the session data
+          setWorkflowState(WorkflowState.START); // Default to start, we'll override if needed
+        } else {
+          // Initialize a new session
+          const newSession: PresentationSession = {
+            classId: currentClassId,
+            presentedStudentIds: [],
+            feedbackGivenStudentIds: [],
+          };
+          setSession(newSession);
+          saveSession(newSession);
+        }
+      } else {
+        // Class not found, redirect to subject page
+        router.push(`/subject/${currentSubjectId}`);
+      }
+    } else {
+      // Subject not found, redirect to home
+      router.push("/");
+    }
+  }, [currentSubjectId, currentClassId, router]);
+
+  const startNewPresentation = () => {
+    if (!currentClass || !session) return;
+
+    setWorkflowState(WorkflowState.SELECTING_PRESENTER);
+  };
+
+  const handlePresenterSelected = () => {
+    if (!currentClass || !session) return;
+
+    const presenter = selectRandomStudent(
+      currentClass.students,
+      session.presentedStudentIds
+    );
+
+    if (presenter) {
+      const updatedSession = {
+        ...session,
+        currentPresenter: presenter,
+        // Don't add to presentedStudentIds yet, only after they complete the presentation
+      };
+      setSession(updatedSession);
+      saveSession(updatedSession);
+      setWorkflowState(WorkflowState.PRESENTATION);
+    } else {
+      // No more eligible presenters
+      setWorkflowState(WorkflowState.SUMMARY);
+    }
+  };
+
+  const handlePresentationComplete = () => {
+    if (!session || !session.currentPresenter) return;
+
+    setWorkflowState(WorkflowState.SELECTING_FEEDBACK_GIVER);
+  };
+
+  const handleFeedbackGiverSelected = () => {
+    if (!currentClass || !session || !session.currentPresenter) return;
+
+    // Select a random student to give feedback (who hasn't given feedback yet and isn't the presenter)
+    const excludeIds = [
+      ...session.feedbackGivenStudentIds,
+      session.currentPresenter.id,
+    ];
+
+    const feedbackGiver = selectRandomStudent(
+      currentClass.students,
+      excludeIds
+    );
+
+    if (feedbackGiver) {
+      const updatedSession = {
+        ...session,
+        currentFeedbackGiver: feedbackGiver,
+      };
+      setSession(updatedSession);
+      saveSession(updatedSession);
+      setWorkflowState(WorkflowState.STUDENT_FEEDBACK);
+    } else {
+      // No more eligible feedback givers, skip to lecturer feedback
+      setWorkflowState(WorkflowState.LECTURER_FEEDBACK);
+    }
+  };
+
+  const handleStudentFeedbackComplete = () => {
+    if (!session || !session.currentFeedbackGiver) return;
+
+    // Mark this student as having given feedback
+    const updatedSession = {
+      ...session,
+      feedbackGivenStudentIds: [
+        ...session.feedbackGivenStudentIds,
+        session.currentFeedbackGiver.id,
+      ],
+    };
+    setSession(updatedSession);
+    saveSession(updatedSession);
+
+    setWorkflowState(WorkflowState.LECTURER_FEEDBACK);
+  };
+
+  const handleLecturerFeedbackComplete = () => {
+    setWorkflowState(WorkflowState.REFLECTION);
+  };
+
+  const handleReflectionComplete = () => {
+    if (!session || !session.currentPresenter) return;
+
+    // Mark this student as having presented
+    const updatedSession = {
+      ...session,
+      presentedStudentIds: [
+        ...session.presentedStudentIds,
+        session.currentPresenter.id,
+      ],
+      // Clear current presenter and feedback giver
+      currentPresenter: undefined,
+      currentFeedbackGiver: undefined,
+    };
+    setSession(updatedSession);
+    saveSession(updatedSession);
+
+    setWorkflowState(WorkflowState.START);
+  };
+
+  const resetSession = () => {
+    clearSession();
+    const newSession: PresentationSession = {
+      classId: currentClassId,
+      presentedStudentIds: [],
+      feedbackGivenStudentIds: [],
+    };
+    setSession(newSession);
+    saveSession(newSession);
+    setWorkflowState(WorkflowState.START);
+  };
+
+  if (!subject || !currentClass || !session) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  const renderContent = () => {
+    switch (workflowState) {
+      case WorkflowState.START:
+        return (
+          <div className="flex flex-col items-center justify-center">
+            <h2 className="text-2xl font-bold mb-8">
+              {currentClass.name} - {subject.name}
+            </h2>
+
+            <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+              <h3 className="text-xl font-semibold mb-4">
+                Start Presentations
+              </h3>
+              <p className="mb-6">
+                {session.presentedStudentIds.length > 0
+                  ? `${session.presentedStudentIds.length} of ${currentClass.students.length} students have presented.`
+                  : "No students have presented yet."}
+              </p>
+
+              {currentClass.students.length === 0 ? (
+                <div className="bg-orange-50 border border-orange-200 p-4 rounded-md mb-4">
+                  <p className="text-orange-800">
+                    No students in this class. Please add students before
+                    starting presentations.
+                  </p>
+                  <Link
+                    href={`/subject/${currentSubjectId}/class/${currentClassId}/students`}
+                    className="mt-2 inline-block text-blue-500 hover:underline"
+                  >
+                    Manage Students
+                  </Link>
+                </div>
+              ) : session.presentedStudentIds.length >=
+                currentClass.students.length ? (
+                <div className="bg-green-50 border border-green-200 p-4 rounded-md mb-4">
+                  <p className="text-green-800">All students have presented!</p>
+                  <button
+                    onClick={resetSession}
+                    className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                  >
+                    Reset Session
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={startNewPresentation}
+                  className="w-full bg-blue-500 text-white px-4 py-3 rounded-md hover:bg-blue-600 font-medium text-lg"
+                >
+                  Next Presentation
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case WorkflowState.SELECTING_PRESENTER:
+        return (
+          <DiceRoll onComplete={handlePresenterSelected} duration={2000} />
+        );
+
+      case WorkflowState.PRESENTATION:
+        return (
+          <div className="flex flex-col items-center justify-center">
+            <h2 className="text-2xl font-bold mb-4">Presentation</h2>
+
+            <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md mb-6">
+              <p className="text-lg font-medium text-center mb-4">
+                Presenter:
+                <span className="block text-2xl font-bold text-blue-600">
+                  {session.currentPresenter?.name}
+                </span>
+              </p>
+            </div>
+
+            <Timer
+              duration={TIMER_CONFIGURATIONS[TimerType.PRESENTATION]}
+              timerType={TimerType.PRESENTATION}
+              onComplete={handlePresentationComplete}
+            />
+          </div>
+        );
+
+      case WorkflowState.SELECTING_FEEDBACK_GIVER:
+        return (
+          <DiceRoll onComplete={handleFeedbackGiverSelected} duration={1500} />
+        );
+
+      case WorkflowState.STUDENT_FEEDBACK:
+        return (
+          <div className="flex flex-col items-center justify-center">
+            <h2 className="text-2xl font-bold mb-4">Student Feedback</h2>
+
+            <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md mb-6">
+              <p className="text-lg font-medium text-center mb-4">
+                Feedback from:
+                <span className="block text-2xl font-bold text-green-600">
+                  {session.currentFeedbackGiver?.name}
+                </span>
+              </p>
+            </div>
+
+            <Timer
+              duration={TIMER_CONFIGURATIONS[TimerType.STUDENT_FEEDBACK]}
+              timerType={TimerType.STUDENT_FEEDBACK}
+              onComplete={handleStudentFeedbackComplete}
+            />
+          </div>
+        );
+
+      case WorkflowState.LECTURER_FEEDBACK:
+        return (
+          <div className="flex flex-col items-center justify-center">
+            <h2 className="text-2xl font-bold mb-4">Lecturer Feedback</h2>
+
+            <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md mb-6">
+              <p className="text-lg font-medium text-center mb-4">
+                Feedback for:
+                <span className="block text-2xl font-bold text-blue-600">
+                  {session.currentPresenter?.name}
+                </span>
+              </p>
+            </div>
+
+            <Timer
+              duration={TIMER_CONFIGURATIONS[TimerType.LECTURER_FEEDBACK]}
+              timerType={TimerType.LECTURER_FEEDBACK}
+              onComplete={handleLecturerFeedbackComplete}
+            />
+          </div>
+        );
+
+      case WorkflowState.REFLECTION:
+        return (
+          <div className="flex flex-col items-center justify-center">
+            <h2 className="text-2xl font-bold mb-4">Student Reflection</h2>
+
+            <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md mb-6">
+              <p className="text-lg font-medium text-center mb-4">
+                Reflection time for:
+                <span className="block text-2xl font-bold text-blue-600">
+                  {session.currentPresenter?.name}
+                </span>
+              </p>
+            </div>
+
+            <Timer
+              duration={TIMER_CONFIGURATIONS[TimerType.REFLECTION]}
+              timerType={TimerType.REFLECTION}
+              onComplete={handleReflectionComplete}
+            />
+          </div>
+        );
+
+      case WorkflowState.SUMMARY:
+        return (
+          <div className="flex flex-col items-center justify-center">
+            <h2 className="text-2xl font-bold mb-8">Session Complete</h2>
+
+            <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+              <h3 className="text-xl font-semibold mb-4">All Done!</h3>
+              <p className="mb-6">All eligible students have presented.</p>
+
+              <button
+                onClick={resetSession}
+                className="w-full bg-blue-500 text-white px-4 py-3 rounded-md hover:bg-blue-600 font-medium"
+              >
+                Start New Session
+              </button>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <main className="container mx-auto px-4 py-8">
+      {/* Only show back button on the start screen */}
+      {workflowState === WorkflowState.START && (
+        <div className="mb-6">
+          <Link
+            href={`/subject/${currentSubjectId}`}
+            className="inline-flex items-center text-blue-500 hover:text-blue-700"
+          >
+            <FaArrowLeft className="mr-2" /> Back to Classes
+          </Link>
+        </div>
+      )}
+
+      <div className="flex-1 flex items-center justify-center py-8">
+        {renderContent()}
+      </div>
+    </main>
+  );
+}
