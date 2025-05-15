@@ -6,13 +6,14 @@ export interface Student {
 export interface Class {
   id: string;
   name: string;
-  students: Student[];
+  lastSessionTimestamp?: number | null; // Timestamp of the last session completion
 }
 
 export interface Subject {
   id: string;
   name: string;
   classes: Class[];
+  students: Student[];
 }
 
 export interface PresentationSession {
@@ -21,6 +22,22 @@ export interface PresentationSession {
   feedbackGivenStudentIds: string[];
   currentPresenter?: Student;
   currentFeedbackGiver?: Student;
+}
+
+// Track student presentation and feedback history
+export interface StudentActivity {
+  studentId: string;
+  classId: string;
+  subjectId: string;
+  activityType: "presentation" | "feedback";
+  timestamp: number;
+  className?: string; // Optional for easier display
+  subjectName?: string; // Optional for easier display
+}
+
+// Collection of all student activities
+export interface PresentationHistory {
+  activities: StudentActivity[];
 }
 
 export enum TimerType {

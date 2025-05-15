@@ -19,6 +19,8 @@ import {
   getSession,
   saveSession,
   clearSession,
+  updateSubject,
+  addStudentActivity,
 } from "../../../../../utils/storage";
 import { selectRandomStudent } from "../../../../../utils/helpers";
 
@@ -39,7 +41,6 @@ export default function ClassPage({
 }: {
   params: { subjectId: string; classId: string };
 }) {
-  // Properly unwrap params using React.use() - explicit casting to handle TypeScript
   const unwrappedParams = React.use(params as any) as {
     subjectId: string;
     classId: string;
@@ -53,46 +54,50 @@ export default function ClassPage({
   const [workflowState, setWorkflowState] = useState<WorkflowState>(
     WorkflowState.START
   );
+  const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // Load data
   useEffect(() => {
-    const subjects = getSubjects();
-    const foundSubject = subjects.find((s) => s.id === currentSubjectId);
+    if (hasMounted) {
+      const subjects = getSubjects();
+      const foundSubject = subjects.find((s) => s.id === currentSubjectId);
 
-    if (foundSubject) {
-      setSubject(foundSubject);
-      const foundClass = foundSubject.classes.find(
-        (c) => c.id === currentClassId
-      );
+      if (foundSubject) {
+        setSubject(foundSubject);
+        const foundClass = foundSubject.classes.find(
+          (c) => c.id === currentClassId
+        );
 
-      if (foundClass) {
-        setCurrentClass(foundClass);
-        // Check if there's an active session
-        const activeSession = getSession();
-        if (activeSession && activeSession.classId === currentClassId) {
-          setSession(activeSession);
-          // Determine the workflow state based on the session data
-          setWorkflowState(WorkflowState.START); // Default to start, we'll override if needed
+        if (foundClass) {
+          setCurrentClass(foundClass);
+          const activeSession = getSession();
+          if (activeSession && activeSession.classId === currentClassId) {
+            setSession(activeSession);
+            // Optionally, restore workflowState based on activeSession properties if needed
+            // For now, default START is fine, or you might inspect activeSession
+            // to jump to, e.g., WorkflowState.PRESENTATION if session.currentPresenter exists.
+          } else {
+            const newSession: PresentationSession = {
+              classId: currentClassId,
+              presentedStudentIds: [],
+              feedbackGivenStudentIds: [],
+            };
+            setSession(newSession);
+            saveSession(newSession);
+          }
         } else {
-          // Initialize a new session
-          const newSession: PresentationSession = {
-            classId: currentClassId,
-            presentedStudentIds: [],
-            feedbackGivenStudentIds: [],
-          };
-          setSession(newSession);
-          saveSession(newSession);
+          router.push(`/subject/${currentSubjectId}`); // Class not found
         }
       } else {
-        // Class not found, redirect to subject page
-        router.push(`/subject/${currentSubjectId}`);
+        router.push("/"); // Subject not found
       }
-    } else {
-      // Subject not found, redirect to home
-      router.push("/");
     }
-  }, [currentSubjectId, currentClassId, router]);
+  }, [currentSubjectId, currentClassId, router, hasMounted]); // Added hasMounted
 
   const startNewPresentation = () => {
     if (!currentClass || !session) return;
@@ -101,10 +106,10 @@ export default function ClassPage({
   };
 
   const handlePresenterSelected = () => {
-    if (!currentClass || !session) return;
+    if (!currentClass || !session || !subject || !subject.students) return;
 
     const presenter = selectRandomStudent(
-      currentClass.students,
+      subject.students,
       session.presentedStudentIds
     );
 
@@ -115,7 +120,7 @@ export default function ClassPage({
         // Don't add to presentedStudentIds yet, only after they complete the presentation
       };
       setSession(updatedSession);
-      saveSession(updatedSession);
+      if (hasMounted) saveSession(updatedSession);
       setWorkflowState(WorkflowState.PRESENTATION);
     } else {
       // No more eligible presenters
@@ -130,18 +135,21 @@ export default function ClassPage({
   };
 
   const handleFeedbackGiverSelected = () => {
-    if (!currentClass || !session || !session.currentPresenter) return;
+    if (
+      !currentClass ||
+      !session ||
+      !session.currentPresenter ||
+      !subject ||
+      !subject.students
+    )
+      return;
 
-    // Select a random student to give feedback (who hasn't given feedback yet and isn't the presenter)
     const excludeIds = [
       ...session.feedbackGivenStudentIds,
       session.currentPresenter.id,
     ];
 
-    const feedbackGiver = selectRandomStudent(
-      currentClass.students,
-      excludeIds
-    );
+    const feedbackGiver = selectRandomStudent(subject.students, excludeIds);
 
     if (feedbackGiver) {
       const updatedSession = {
@@ -149,7 +157,7 @@ export default function ClassPage({
         currentFeedbackGiver: feedbackGiver,
       };
       setSession(updatedSession);
-      saveSession(updatedSession);
+      if (hasMounted) saveSession(updatedSession);
       setWorkflowState(WorkflowState.STUDENT_FEEDBACK);
     } else {
       // No more eligible feedback givers, skip to lecturer feedback
@@ -169,7 +177,7 @@ export default function ClassPage({
       ],
     };
     setSession(updatedSession);
-    saveSession(updatedSession);
+    if (hasMounted) saveSession(updatedSession);
 
     setWorkflowState(WorkflowState.LECTURER_FEEDBACK);
   };
@@ -179,7 +187,52 @@ export default function ClassPage({
   };
 
   const handleReflectionComplete = () => {
-    if (!session || !session.currentPresenter) return;
+    if (!session || !session.currentPresenter || !subject || !currentClass)
+      return;
+
+    // Update last session timestamp for the class
+    const updatedClass: Class = {
+      ...currentClass,
+      lastSessionTimestamp: Date.now(),
+    };
+
+    const updatedClasses = subject.classes.map((c) =>
+      c.id === currentClass.id ? updatedClass : c
+    );
+
+    const updatedSubjectData: Subject = {
+      ...subject,
+      classes: updatedClasses,
+    };
+    updateSubject(updatedSubjectData); // Save the subject with the updated class
+    setSubject(updatedSubjectData); // Update local subject state
+    setCurrentClass(updatedClass); // Update local class state
+
+    const timestamp = Date.now();
+
+    // Record this student's presentation in history
+    addStudentActivity({
+      studentId: session.currentPresenter.id,
+      classId: currentClass.id,
+      subjectId: subject.id,
+      activityType: "presentation",
+      timestamp,
+      className: currentClass.name,
+      subjectName: subject.name,
+    });
+
+    // Record the feedback giver's activity if there was one
+    if (session.currentFeedbackGiver) {
+      addStudentActivity({
+        studentId: session.currentFeedbackGiver.id,
+        classId: currentClass.id,
+        subjectId: subject.id,
+        activityType: "feedback",
+        timestamp,
+        className: currentClass.name,
+        subjectName: subject.name,
+      });
+    }
 
     // Mark this student as having presented
     const updatedSession = {
@@ -193,28 +246,40 @@ export default function ClassPage({
       currentFeedbackGiver: undefined,
     };
     setSession(updatedSession);
-    saveSession(updatedSession);
+    if (hasMounted) saveSession(updatedSession);
 
     setWorkflowState(WorkflowState.START);
   };
 
   const resetSession = () => {
-    clearSession();
-    const newSession: PresentationSession = {
-      classId: currentClassId,
-      presentedStudentIds: [],
-      feedbackGivenStudentIds: [],
-    };
-    setSession(newSession);
-    saveSession(newSession);
+    if (hasMounted) {
+      // Guard localStorage access
+      clearSession();
+      const newSession: PresentationSession = {
+        classId: currentClassId,
+        presentedStudentIds: [],
+        feedbackGivenStudentIds: [],
+      };
+      setSession(newSession);
+      saveSession(newSession); // saveSession is also guarded by hasMounted check implicitly
+    }
     setWorkflowState(WorkflowState.START);
   };
 
-  if (!subject || !currentClass || !session) {
+  if (!hasMounted || !subject || !currentClass || !session) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p>Loading...</p>
-      </div>
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex-1 flex items-center justify-center py-8">
+          <div className="flex flex-col items-center justify-center">
+            <div className="h-8 bg-gray-300 rounded w-3/4 mb-8 animate-pulse"></div>
+            <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+              <div className="h-6 bg-gray-200 rounded w-1/2 mb-4 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-6 animate-pulse"></div>
+              <div className="h-12 bg-gray-300 rounded w-full animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -233,25 +298,27 @@ export default function ClassPage({
               </h3>
               <p className="mb-6">
                 {session.presentedStudentIds.length > 0
-                  ? `${session.presentedStudentIds.length} of ${currentClass.students.length} students have presented.`
+                  ? `${session.presentedStudentIds.length} of ${
+                      subject.students ? subject.students.length : 0
+                    } students have presented.`
                   : "No students have presented yet."}
               </p>
 
-              {currentClass.students.length === 0 ? (
+              {!subject.students || subject.students.length === 0 ? (
                 <div className="bg-orange-50 border border-orange-200 p-4 rounded-md mb-4">
                   <p className="text-orange-800">
-                    No students in this class. Please add students before
+                    No students in this subject. Please add students before
                     starting presentations.
                   </p>
                   <Link
-                    href={`/subject/${currentSubjectId}/class/${currentClassId}/students`}
+                    href={`/subject/${currentSubjectId}/students`}
                     className="mt-2 inline-block text-blue-500 hover:underline"
                   >
-                    Manage Students
+                    Manage Subject Students
                   </Link>
                 </div>
               ) : session.presentedStudentIds.length >=
-                currentClass.students.length ? (
+                (subject.students ? subject.students.length : 0) ? (
                 <div className="bg-green-50 border border-green-200 p-4 rounded-md mb-4">
                   <p className="text-green-800">All students have presented!</p>
                   <button
@@ -293,6 +360,7 @@ export default function ClassPage({
             </div>
 
             <Timer
+              key={TimerType.PRESENTATION}
               duration={TIMER_CONFIGURATIONS[TimerType.PRESENTATION]}
               timerType={TimerType.PRESENTATION}
               onComplete={handlePresentationComplete}
@@ -320,6 +388,7 @@ export default function ClassPage({
             </div>
 
             <Timer
+              key={TimerType.STUDENT_FEEDBACK}
               duration={TIMER_CONFIGURATIONS[TimerType.STUDENT_FEEDBACK]}
               timerType={TimerType.STUDENT_FEEDBACK}
               onComplete={handleStudentFeedbackComplete}
@@ -342,9 +411,11 @@ export default function ClassPage({
             </div>
 
             <Timer
+              key={TimerType.LECTURER_FEEDBACK}
               duration={TIMER_CONFIGURATIONS[TimerType.LECTURER_FEEDBACK]}
               timerType={TimerType.LECTURER_FEEDBACK}
               onComplete={handleLecturerFeedbackComplete}
+              autoStart={false}
             />
           </div>
         );
@@ -364,6 +435,7 @@ export default function ClassPage({
             </div>
 
             <Timer
+              key={TimerType.REFLECTION}
               duration={TIMER_CONFIGURATIONS[TimerType.REFLECTION]}
               timerType={TimerType.REFLECTION}
               onComplete={handleReflectionComplete}

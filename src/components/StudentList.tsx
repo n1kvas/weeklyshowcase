@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaPlus, FaUserGraduate } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 import { Student } from "../models/Types";
 import { generateId } from "../utils/helpers";
 
 interface StudentListProps {
   students: Student[];
   onAddStudent: (student: Student) => void;
-  onRemoveStudent: (studentId: string) => void;
+  onRemoveStudent: (id: string) => void;
 }
 
 const StudentList: React.FC<StudentListProps> = ({
@@ -21,7 +22,7 @@ const StudentList: React.FC<StudentListProps> = ({
   const handleAddStudent = (e: React.FormEvent) => {
     e.preventDefault();
     if (newStudentName.trim()) {
-      const newStudent = {
+      const newStudent: Student = {
         id: generateId(),
         name: newStudentName.trim(),
       };
@@ -31,8 +32,11 @@ const StudentList: React.FC<StudentListProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4">
-      <h2 className="text-xl font-bold mb-4">Manage Students</h2>
+    <div className="bg-white rounded-xl shadow-card p-6">
+      <h2 className="text-xl font-semibold mb-6 text-neutral-800 flex items-center gap-2">
+        <FaUserGraduate className="text-primary-500" />
+        <span>Manage Students</span>
+      </h2>
 
       <form onSubmit={handleAddStudent} className="mb-6">
         <div className="flex">
@@ -40,37 +44,65 @@ const StudentList: React.FC<StudentListProps> = ({
             type="text"
             value={newStudentName}
             onChange={(e) => setNewStudentName(e.target.value)}
-            placeholder="Enter student name"
-            className="flex-1 p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Student name"
+            className="input rounded-r-none flex-1"
           />
-          <button
+          <motion.button
             type="submit"
-            className="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600"
+            className="btn btn-primary rounded-l-none px-4"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            disabled={!newStudentName.trim()}
           >
-            Add
-          </button>
+            <FaPlus className="mr-2" /> Add
+          </motion.button>
         </div>
       </form>
 
-      <div className="space-y-2">
+      <div className="border-t border-neutral-100 pt-4">
+        <h3 className="text-lg font-medium mb-4 text-neutral-700">
+          Students ({students.length})
+        </h3>
+
         {students.length === 0 ? (
-          <p className="text-gray-500">No students added yet.</p>
+          <motion.div
+            className="bg-neutral-50 rounded-lg p-6 text-center"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <p className="text-neutral-500">No students added yet.</p>
+            <p className="text-neutral-400 text-sm mt-1">
+              Add students using the form above.
+            </p>
+          </motion.div>
         ) : (
-          students.map((student) => (
-            <div
-              key={student.id}
-              className="flex justify-between items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100"
-            >
-              <span>{student.name}</span>
-              <button
-                onClick={() => onRemoveStudent(student.id)}
-                className="text-red-500 hover:bg-red-100 p-2 rounded-full"
-                title="Remove Student"
-              >
-                <FaTrash />
-              </button>
-            </div>
-          ))
+          <div className="space-y-2">
+            <AnimatePresence>
+              {students.map((student) => (
+                <motion.div
+                  key={student.id}
+                  className="flex justify-between items-center p-3 bg-neutral-50 rounded-lg group hover:bg-primary-50 transition-colors"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  layout
+                >
+                  <span className="font-medium text-neutral-700 group-hover:text-primary-700">
+                    {student.name}
+                  </span>
+                  <motion.button
+                    onClick={() => onRemoveStudent(student.id)}
+                    className="text-neutral-400 hover:text-danger-500 p-2 rounded-full hover:bg-danger-50"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FaTrash />
+                  </motion.button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         )}
       </div>
     </div>

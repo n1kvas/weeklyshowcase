@@ -1,15 +1,25 @@
-import { Subject, Class, Student, PresentationSession } from "../models/Types";
+import {
+  Subject,
+  Class,
+  Student,
+  PresentationSession,
+  StudentActivity,
+  PresentationHistory,
+} from "../models/Types";
 
 // Keys for localStorage
 const SUBJECTS_KEY = "weeklyShowcase_subjects";
 const SESSION_KEY = "weeklyShowcase_session";
+const HISTORY_KEY = "weeklyShowcase_history";
 
 // Subjects
 export const getSubjects = (): Subject[] => {
   if (typeof window === "undefined") return [];
 
   const storedData = localStorage.getItem(SUBJECTS_KEY);
-  return storedData ? JSON.parse(storedData) : [];
+  const subjects: Subject[] = storedData ? JSON.parse(storedData) : [];
+  // Ensure all subjects have a .students array for safety
+  return subjects.map((s: Subject) => ({ ...s, students: s.students || [] }));
 };
 
 export const saveSubjects = (subjects: Subject[]): void => {
@@ -19,7 +29,12 @@ export const saveSubjects = (subjects: Subject[]): void => {
 
 export const addSubject = (subject: Subject): void => {
   const subjects = getSubjects();
-  subjects.push(subject);
+  // Ensure new subjects have a students array
+  const subjectWithStudents = {
+    ...subject,
+    students: subject.students || [],
+  };
+  subjects.push(subjectWithStudents);
   saveSubjects(subjects);
 };
 
@@ -48,6 +63,7 @@ export const addClass = (subjectId: string, newClass: Class): void => {
   const subjects = getSubjects();
   const subject = subjects.find((s) => s.id === subjectId);
   if (subject) {
+    // Classes no longer have their own students array
     subject.classes.push(newClass);
     saveSubjects(subjects);
   }
@@ -62,38 +78,35 @@ export const removeClass = (subjectId: string, classId: string): void => {
   }
 };
 
-// Students
-export const getStudents = (subjectId: string, classId: string): Student[] => {
-  const subjects = getSubjects();
-  const subject = subjects.find((s) => s.id === subjectId);
-  const classObj = subject?.classes.find((c) => c.id === classId);
-  return classObj?.students || [];
+// Students (now managed at Subject level)
+export const getStudents = (subjectId: string): Student[] => {
+  const subject = getSubjects().find((s) => s.id === subjectId);
+  return subject?.students || [];
 };
 
-export const addStudent = (
+export const addStudentToSubject = (
   subjectId: string,
-  classId: string,
   student: Student
 ): void => {
   const subjects = getSubjects();
   const subject = subjects.find((s) => s.id === subjectId);
-  const classObj = subject?.classes.find((c) => c.id === classId);
-  if (classObj) {
-    classObj.students.push(student);
+  if (subject) {
+    if (!subject.students) {
+      subject.students = [];
+    }
+    subject.students.push(student);
     saveSubjects(subjects);
   }
 };
 
-export const removeStudent = (
+export const removeStudentFromSubject = (
   subjectId: string,
-  classId: string,
   studentId: string
 ): void => {
   const subjects = getSubjects();
   const subject = subjects.find((s) => s.id === subjectId);
-  const classObj = subject?.classes.find((c) => c.id === classId);
-  if (classObj) {
-    classObj.students = classObj.students.filter((s) => s.id !== studentId);
+  if (subject && subject.students) {
+    subject.students = subject.students.filter((s) => s.id !== studentId);
     saveSubjects(subjects);
   }
 };
@@ -114,4 +127,42 @@ export const saveSession = (session: PresentationSession): void => {
 export const clearSession = (): void => {
   if (typeof window === "undefined") return;
   localStorage.removeItem(SESSION_KEY);
+};
+
+// History Management
+export const getHistory = (): PresentationHistory => {
+  if (typeof window === "undefined") return { activities: [] };
+
+  const storedData = localStorage.getItem(HISTORY_KEY);
+  return storedData ? JSON.parse(storedData) : { activities: [] };
+};
+
+export const saveHistory = (history: PresentationHistory): void => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+};
+
+export const addStudentActivity = (activity: StudentActivity): void => {
+  const history = getHistory();
+  history.activities.push(activity);
+  saveHistory(history);
+};
+
+export const getStudentActivities = (
+  studentId?: string,
+  subjectId?: string,
+  activityType?: "presentation" | "feedback"
+): StudentActivity[] => {
+  const history = getHistory();
+
+  return history.activities.filter((activity) => {
+    let match = true;
+    if (studentId !== undefined)
+      match = match && activity.studentId === studentId;
+    if (subjectId !== undefined)
+      match = match && activity.subjectId === subjectId;
+    if (activityType !== undefined)
+      match = match && activity.activityType === activityType;
+    return match;
+  });
 };

@@ -3,19 +3,18 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { FaTrash, FaUsers, FaChartBar } from "react-icons/fa";
+import { motion } from "framer-motion";
 import { Subject } from "../models/Types";
 
 interface SubjectCardProps {
   subject: Subject;
   onDelete: (id: string) => void;
-  onManageStudents: (id: string) => void;
   onViewReports: (id: string) => void;
 }
 
 const SubjectCard: React.FC<SubjectCardProps> = ({
   subject,
   onDelete,
-  onManageStudents,
   onViewReports,
 }) => {
   const router = useRouter();
@@ -31,7 +30,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
 
   const handleManageStudents = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onManageStudents(subject.id);
+    router.push(`/subject/${subject.id}/students`);
   };
 
   const handleViewReports = (e: React.MouseEvent) => {
@@ -40,41 +39,79 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   };
 
   return (
-    <div
-      className="bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow"
+    <motion.div
+      className="card p-6 cursor-pointer hover:shadow-elevation transition-shadow overflow-hidden relative"
       onClick={handleClick}
+      whileHover={{ y: -4 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
-      <div className="flex justify-between items-center">
-        <h3 className="font-bold text-lg">{subject.name}</h3>
-        <div className="flex space-x-2">
-          <button
-            className="p-2 text-blue-500 hover:bg-blue-100 rounded-full"
+      {/* Decorative element */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 to-secondary-500"></div>
+
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="font-semibold text-xl text-neutral-800 mb-1">
+            {subject.name}
+          </h3>
+          <div className="flex items-center space-x-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700">
+              {subject.classes.length}{" "}
+              {subject.classes.length === 1 ? "class" : "classes"}
+            </span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-50 text-secondary-700">
+              {subject.students.length}{" "}
+              {subject.students.length === 1 ? "student" : "students"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex space-x-1">
+          <motion.button
+            className="p-2 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
             onClick={handleManageStudents}
             title="Manage Students"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <FaUsers />
-          </button>
-          <button
-            className="p-2 text-green-500 hover:bg-green-100 rounded-full"
+            <FaUsers className="text-lg" />
+          </motion.button>
+          <motion.button
+            className="p-2 text-neutral-500 hover:text-secondary-600 hover:bg-secondary-50 rounded-lg transition-colors"
             onClick={handleViewReports}
             title="View Reports"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <FaChartBar />
-          </button>
-          <button
-            className="p-2 text-red-500 hover:bg-red-100 rounded-full"
+            <FaChartBar className="text-lg" />
+          </motion.button>
+          <motion.button
+            className="p-2 text-neutral-500 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
             onClick={handleDelete}
             title="Delete Subject"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <FaTrash />
-          </button>
+            <FaTrash className="text-lg" />
+          </motion.button>
         </div>
       </div>
-      <p className="text-gray-600 mt-2">
-        {subject.classes.length}{" "}
-        {subject.classes.length === 1 ? "class" : "classes"}
-      </p>
-    </div>
+
+      <div className="mt-5 pt-4 border-t border-neutral-100">
+        <div className="flex justify-between text-sm text-neutral-600">
+          <span>
+            Last session: {subject.classes.length > 0 ? "2 days ago" : "Never"}
+          </span>
+          <motion.span
+            className="text-primary-600 font-medium cursor-pointer"
+            whileHover={{ x: 2 }}
+          >
+            Manage →
+          </motion.span>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 
