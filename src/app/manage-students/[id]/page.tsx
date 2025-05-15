@@ -9,9 +9,8 @@ export default function ManageStudentsRedirect({
 }: {
   params: { id: string };
 }) {
-  // Properly unwrap params using React.use() - explicit casting to handle TypeScript
-  const unwrappedParams = React.use(params as any) as { id: string };
-  const subjectId = unwrappedParams.id;
+  // Access the ID directly from params
+  const subjectId = params.id;
 
   const router = useRouter();
 
