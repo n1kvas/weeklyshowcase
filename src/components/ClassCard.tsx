@@ -58,7 +58,7 @@ const ClassCard: React.FC<ClassCardProps> = ({
 
   return (
     <motion.div
-      className="card p-6 cursor-pointer overflow-hidden relative"
+      className="card p-6 cursor-pointer overflow-hidden relative dark:border-neutral-700"
       onClick={handleClick}
       whileHover={{ y: -4, boxShadow: "0 12px 20px -10px rgba(0, 0, 0, 0.05)" }}
       initial={{ opacity: 0, y: 20 }}
@@ -66,18 +66,18 @@ const ClassCard: React.FC<ClassCardProps> = ({
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
     >
       {/* Decorative element */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary-500 to-primary-500"></div>
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary-500 to-primary-500 dark:from-secondary-700 dark:to-primary-700"></div>
 
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="font-semibold text-xl text-neutral-800 mb-1">
+          <h3 className="font-semibold text-xl text-neutral-800 dark:text-neutral-100 mb-1">
             {classItem.name}
           </h3>
         </div>
 
         <div className="flex space-x-1">
           <motion.button
-            className="p-2 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            className="p-2 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 dark:text-neutral-400 dark:hover:text-primary-400 dark:hover:bg-primary-900 rounded-lg transition-colors"
             onClick={handleManageStudents}
             title="Manage Students"
             whileHover={{ scale: 1.1 }}
@@ -86,7 +86,7 @@ const ClassCard: React.FC<ClassCardProps> = ({
             <FaUsers className="text-lg" />
           </motion.button>
           <motion.button
-            className="p-2 text-neutral-500 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
+            className="p-2 text-neutral-500 hover:text-danger-600 hover:bg-danger-50 dark:text-neutral-400 dark:hover:text-danger-400 dark:hover:bg-danger-900 rounded-lg transition-colors"
             onClick={handleDelete}
             title="Delete Class"
             whileHover={{ scale: 1.1 }}
@@ -97,16 +97,16 @@ const ClassCard: React.FC<ClassCardProps> = ({
         </div>
       </div>
 
-      <div className="mt-5 pt-4 border-t border-neutral-100">
+      <div className="mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-700">
         <div className="flex justify-between items-center">
-          <div className="flex items-center text-neutral-600 text-sm">
+          <div className="flex items-center text-neutral-600 dark:text-neutral-400 text-sm">
             <FaRegClock className="mr-1" />
             <span>
               Last session: {formatTimeAgo(classItem.lastSessionTimestamp)}
             </span>
           </div>
           <motion.div
-            className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-medium"
+            className="bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 px-3 py-1 rounded-full text-xs font-medium"
             whileHover={{ scale: 1.05 }}
           >
             {"Start Session"}

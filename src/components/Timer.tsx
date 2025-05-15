@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { TimerType } from "../models/Types";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -19,6 +19,7 @@ const Timer: React.FC<TimerProps> = ({
 }) => {
   const [timeLeft, setTimeLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(autoStart);
+  const [isCompleted, setIsCompleted] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const doubleClickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const clickCount = useRef(0);
@@ -27,6 +28,7 @@ const Timer: React.FC<TimerProps> = ({
   useEffect(() => {
     setTimeLeft(duration);
     setIsRunning(autoStart);
+    setIsCompleted(false);
   }, [duration, autoStart]);
 
   // Timer logic
@@ -37,7 +39,7 @@ const Timer: React.FC<TimerProps> = ({
           if (prevTime <= 1) {
             clearInterval(timerRef.current!);
             setIsRunning(false);
-            onComplete();
+            setIsCompleted(true);
             return 0;
           }
           return prevTime - 1;
@@ -52,7 +54,20 @@ const Timer: React.FC<TimerProps> = ({
         clearInterval(timerRef.current);
       }
     };
-  }, [isRunning, onComplete]);
+  }, [isRunning]);
+
+  // Handle completion separately from the timer
+  useEffect(() => {
+    if (isCompleted) {
+      console.log(`Timer (${timerType}) completed. Triggering callback.`);
+      // Use a small delay to ensure UI updates before callback
+      const timeoutId = setTimeout(() => {
+        onComplete();
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isCompleted, onComplete, timerType]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -66,7 +81,11 @@ const Timer: React.FC<TimerProps> = ({
   const circumference = 2 * Math.PI * 45; // Circle radius is 45
   const dashOffset = circumference * (1 - progressPercentage / 100);
 
-  const handleTimerClick = () => {
+  // Move the timer click handler to useCallback to avoid recreation on each render
+  const handleTimerClick = useCallback(() => {
+    // Don't handle clicks if the timer is already completed
+    if (isCompleted) return;
+
     clickCount.current += 1;
 
     if (clickCount.current === 1) {
@@ -80,45 +99,50 @@ const Timer: React.FC<TimerProps> = ({
       if (doubleClickTimeoutRef.current) {
         clearTimeout(doubleClickTimeoutRef.current);
       }
+
+      // Use a separate effect for completing the timer
       setTimeLeft(0);
       setIsRunning(false);
-      onComplete();
+      setIsCompleted(true);
+
       clickCount.current = 0;
     }
-  };
+  }, [isCompleted]);
 
-  // Get color based on timer type
-  const getTimerColor = () => {
+  // Move the timer color getter outside of the render function to a memoized value
+  const timerColor = React.useMemo(() => {
     switch (timerType) {
       case TimerType.PRESENTATION:
-        return "text-primary-500 stroke-primary-500";
+        return "text-primary-500 stroke-primary-500 dark:text-primary-400 dark:stroke-primary-400";
       case TimerType.STUDENT_FEEDBACK:
-        return "text-success-500 stroke-success-500";
+        return "text-success-500 stroke-success-500 dark:text-success-400 dark:stroke-success-400";
       case TimerType.LECTURER_FEEDBACK:
-        return "text-secondary-500 stroke-secondary-500";
+        return "text-secondary-500 stroke-secondary-500 dark:text-secondary-400 dark:stroke-secondary-400";
       case TimerType.REFLECTION:
-        return "text-warning-500 stroke-warning-500";
+        return "text-warning-500 stroke-warning-500 dark:text-warning-400 dark:stroke-warning-400";
       default:
-        return "text-neutral-500 stroke-neutral-500";
+        return "text-neutral-500 stroke-neutral-500 dark:text-neutral-400 dark:stroke-neutral-400";
     }
-  };
+  }, [timerType]);
 
-  const getTimerBgColor = () => {
+  // Move the timer background color getter outside of the render function
+  const timerBgColor = React.useMemo(() => {
     switch (timerType) {
       case TimerType.PRESENTATION:
-        return "bg-primary-50";
+        return "bg-primary-50 dark:bg-primary-900";
       case TimerType.STUDENT_FEEDBACK:
-        return "bg-success-50";
+        return "bg-success-50 dark:bg-success-900";
       case TimerType.LECTURER_FEEDBACK:
-        return "bg-secondary-50";
+        return "bg-secondary-50 dark:bg-secondary-900";
       case TimerType.REFLECTION:
-        return "bg-warning-50";
+        return "bg-warning-50 dark:bg-warning-900";
       default:
-        return "bg-neutral-50";
+        return "bg-neutral-50 dark:bg-neutral-800";
     }
-  };
+  }, [timerType]);
 
-  const getTimerLabel = () => {
+  // Move the timer label getter outside of the render function
+  const timerLabel = React.useMemo(() => {
     switch (timerType) {
       case TimerType.PRESENTATION:
         return "Presentation";
@@ -131,12 +155,12 @@ const Timer: React.FC<TimerProps> = ({
       default:
         return "Timer";
     }
-  };
+  }, [timerType]);
 
   return (
     <div className="flex flex-col items-center justify-center">
       <motion.div
-        className={`text-lg font-medium mb-4 px-4 py-2 rounded-full ${getTimerBgColor()} ${getTimerColor().replace(
+        className={`text-lg font-medium mb-4 px-4 py-2 rounded-full ${timerBgColor} ${timerColor.replace(
           "stroke-",
           "text-"
         )}`}
@@ -144,7 +168,7 @@ const Timer: React.FC<TimerProps> = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        {getTimerLabel()}
+        {timerLabel}
       </motion.div>
 
       <motion.div
@@ -160,6 +184,7 @@ const Timer: React.FC<TimerProps> = ({
             cy="50"
             r="45"
             fill="white"
+            className="dark:fill-neutral-800"
             stroke="rgba(0,0,0,0.05)"
             strokeWidth="2"
           />
@@ -171,6 +196,7 @@ const Timer: React.FC<TimerProps> = ({
             r="45"
             fill="transparent"
             stroke="#e6e6e6"
+            className="dark:stroke-neutral-700"
             strokeWidth="8"
             strokeLinecap="round"
           />
@@ -184,7 +210,7 @@ const Timer: React.FC<TimerProps> = ({
             strokeWidth="8"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
-            className={getTimerColor()}
+            className={timerColor}
             strokeLinecap="round"
             transform="rotate(-90 50 50)"
             initial={{ strokeDashoffset: circumference }}
@@ -194,7 +220,7 @@ const Timer: React.FC<TimerProps> = ({
         </svg>
 
         <motion.div
-          className={`absolute ${getTimerColor()} text-5xl font-bold`}
+          className={`absolute ${timerColor} text-5xl font-bold`}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.3, type: "spring" }}
@@ -204,7 +230,7 @@ const Timer: React.FC<TimerProps> = ({
       </motion.div>
 
       <motion.div
-        className="mt-6 text-sm text-neutral-500"
+        className="mt-6 text-sm text-neutral-500 dark:text-neutral-400"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}

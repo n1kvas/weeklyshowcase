@@ -6,7 +6,8 @@ import Link from "next/link";
 import { FaArrowLeft, FaUsers } from "react-icons/fa";
 import { Subject, Student } from "../../../../models/Types";
 import StudentList from "../../../../components/StudentList";
-import { getSubjects, updateSubject } from "../../../../utils/storage";
+import * as firestoreService from "../../../../utils/firestoreService";
+import { useAuth } from "../../../../utils/authContext";
 
 export default function SubjectStudentManagementPage({
   params,
@@ -17,47 +18,71 @@ export default function SubjectStudentManagementPage({
   const currentSubjectId = unwrappedParams.subjectId;
 
   const [subject, setSubject] = useState<Subject | null>(null);
-  const [hasMounted, setHasMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    setHasMounted(true);
-  }, []);
+    const loadSubject = async () => {
+      try {
+        if (!user) return;
 
-  useEffect(() => {
-    if (hasMounted) {
-      const subjects = getSubjects();
-      const foundSubject = subjects.find((s) => s.id === currentSubjectId);
+        // Load all subjects and find the current one
+        const subjects = await firestoreService.getSubjects(user.uid);
+        const foundSubject = subjects.find((s) => s.id === currentSubjectId);
 
-      if (foundSubject) {
-        setSubject(foundSubject);
-      } else {
-        router.push("/");
+        if (foundSubject) {
+          setSubject(foundSubject);
+        } else {
+          // Subject not found, redirect to home
+          router.push("/");
+        }
+      } catch (error) {
+        console.error("Error loading subject:", error);
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [currentSubjectId, router, hasMounted]);
+    };
 
-  const handleAddStudent = (student: Student) => {
+    loadSubject();
+  }, [currentSubjectId, router, user]);
+
+  const handleAddStudent = async (student: Student) => {
     if (!subject) return;
 
-    const updatedStudents = [...(subject.students || []), student];
-    const updatedSubjectData = { ...subject, students: updatedStudents };
+    try {
+      await firestoreService.addStudentToSubject(currentSubjectId, student);
 
-    updateSubject(updatedSubjectData);
-    setSubject(updatedSubjectData);
+      // Update the local state to reflect the change
+      setSubject({
+        ...subject,
+        students: [...(subject.students || []), student],
+      });
+    } catch (error) {
+      console.error("Error adding student:", error);
+    }
   };
 
-  const handleRemoveStudent = (studentId: string) => {
+  const handleRemoveStudent = async (studentId: string) => {
     if (!subject || !subject.students) return;
 
-    const updatedStudents = subject.students.filter((s) => s.id !== studentId);
-    const updatedSubjectData = { ...subject, students: updatedStudents };
+    try {
+      await firestoreService.removeStudentFromSubject(
+        currentSubjectId,
+        studentId
+      );
 
-    updateSubject(updatedSubjectData);
-    setSubject(updatedSubjectData);
+      // Update the local state to reflect the change
+      setSubject({
+        ...subject,
+        students: subject.students.filter((s) => s.id !== studentId),
+      });
+    } catch (error) {
+      console.error("Error removing student:", error);
+    }
   };
 
-  if (!hasMounted || !subject) {
+  if (loading) {
     return (
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6 h-6 bg-gray-200 rounded w-1/4 animate-pulse"></div>
@@ -77,6 +102,16 @@ export default function SubjectStudentManagementPage({
               </div>
             </div>
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!subject) {
+    return (
+      <main className="container mx-auto px-4 py-8">
+        <div className="alert alert-error">
+          Subject not found. <Link href="/">Return to dashboard</Link>
         </div>
       </main>
     );

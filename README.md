@@ -13,6 +13,9 @@ A web application for managing student presentations with timed feedback session
 - Timed lecturer feedback session (30 seconds)
 - Timed reflection period (45 seconds)
 - Tracks which students have presented and given feedback
+- User authentication with Firebase (teacher/student roles)
+- Role-based access control
+- Cloud data storage with Firestore
 
 ## Getting Started
 
@@ -20,6 +23,7 @@ A web application for managing student presentations with timed feedback session
 
 - Node.js (v18 or higher)
 - npm or yarn
+- Firebase account
 
 ### Installation
 
@@ -38,7 +42,36 @@ npm install
 yarn
 ```
 
-3. Run the development server
+3. Set up Firebase
+
+   - Create a Firebase project at [firebase.google.com](https://firebase.google.com)
+   - Enable Authentication with Email/Password provider
+   - Create a Firestore database
+   - Get your Firebase configuration from Project Settings > General > Your apps
+   - Copy the `env.sample` file to `.env.local` and fill in your Firebase configuration:
+
+```
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+```
+
+4. Deploy Firestore security rules
+
+   - Copy the contents of `firestore.rules` to your Firebase console under Firestore > Rules
+   - Or deploy using the Firebase CLI:
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase init firestore
+firebase deploy --only firestore:rules
+```
+
+5. Run the development server
 
 ```bash
 npm run dev
@@ -50,7 +83,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Deployment
 
-This application is built with Next.js and can be easily deployed to Hostinger or other hosting providers.
+This application is built with Next.js and can be easily deployed to Vercel, Hostinger, or other hosting providers.
 
 1. Build the application
 
@@ -70,11 +103,16 @@ yarn start
 
 ## Usage
 
-1. Add subjects on the home page
-2. Open a subject to add classes
-3. Manage students in each class
-4. Start presentation sessions by clicking on a class
-5. Follow the guided workflow for presentations and feedback
+1. Register as a teacher or student
+2. Teachers can:
+   - Create and manage subjects
+   - Add classes to subjects
+   - Enroll students in subjects
+   - Manage presentation sessions
+3. Students can:
+   - View subjects they're enrolled in
+   - Participate in presentation sessions
+   - Give and receive feedback
 
 ## Technologies Used
 
@@ -83,7 +121,9 @@ yarn start
 - TypeScript
 - Tailwind CSS
 - Framer Motion for animations
-- LocalStorage for data persistence
+- Firebase Authentication
+- Firestore Database
+- Firebase Security Rules
 
 ## Contact
 

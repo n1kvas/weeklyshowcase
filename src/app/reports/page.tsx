@@ -91,7 +91,7 @@ export default function ReportPage() {
     return (
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center h-64">
-          <div className="h-8 bg-gray-300 rounded w-64 animate-pulse"></div>
+          <div className="h-8 bg-gray-300 dark:bg-neutral-700 rounded w-64 animate-pulse"></div>
         </div>
       </main>
     );
@@ -102,31 +102,39 @@ export default function ReportPage() {
       <div className="mb-6">
         <Link
           href="/"
-          className="inline-flex items-center text-blue-500 hover:text-blue-700"
+          className="inline-flex items-center text-blue-500 hover:text-blue-700 dark:text-primary-400 dark:hover:text-primary-300"
         >
           <FaArrowLeft className="mr-2" /> Back to Home
         </Link>
       </div>
 
-      <h1 className="text-3xl font-bold mb-6">Student Participation Report</h1>
+      <h1 className="text-3xl font-bold mb-6 dark:text-white">
+        Student Participation Report
+      </h1>
 
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <label
             htmlFor="subject-filter"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1"
           >
             Filter by Subject:
           </label>
           <select
             id="subject-filter"
-            className="w-full md:w-64 p-2 border border-gray-300 rounded-md"
+            className="w-full md:w-64 p-2 border border-gray-300 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white rounded-md"
             value={selectedSubject}
             onChange={(e) => setSelectedSubject(e.target.value)}
           >
-            <option value="all">All Subjects</option>
+            <option value="all" className="dark:bg-neutral-800 dark:text-white">
+              All Subjects
+            </option>
             {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
+              <option
+                key={subject.id}
+                value={subject.id}
+                className="dark:bg-neutral-800 dark:text-white"
+              >
                 {subject.name}
               </option>
             ))}
@@ -139,7 +147,7 @@ export default function ReportPage() {
             <Link
               key={subject.id}
               href={`/reports/${subject.id}`}
-              className="inline-flex items-center px-3 py-2 border border-blue-300 bg-blue-50 text-blue-700 rounded-md text-sm hover:bg-blue-100 transition-colors"
+              className="inline-flex items-center px-3 py-2 border border-blue-300 bg-blue-50 text-blue-700 dark:border-primary-700 dark:bg-primary-900 dark:text-primary-300 rounded-md text-sm hover:bg-blue-100 dark:hover:bg-primary-800 transition-colors"
             >
               <FaChartBar className="mr-2" />
               {subject.name} Report
@@ -148,37 +156,37 @@ export default function ReportPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4 mb-8">
+      <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-md p-4 mb-8">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
+            <thead className="bg-gray-50 dark:bg-neutral-700">
               <tr>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-neutral-400 uppercase tracking-wider"
                 >
                   Student Name
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-neutral-400 uppercase tracking-wider"
                 >
                   Presentations
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-neutral-400 uppercase tracking-wider"
                 >
                   Feedback Given
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-700">
               {filteredReports.length > 0 ? (
                 filteredReports.map((report) => (
                   <tr key={report.student.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900 dark:text-neutral-100">
                         {report.student.name}
                       </div>
                     </td>
@@ -188,7 +196,7 @@ export default function ReportPage() {
                           {report.presentations.map((activity, index) => (
                             <li
                               key={`pres-${report.student.id}-${index}`}
-                              className="text-sm text-gray-700"
+                              className="text-sm text-gray-700 dark:text-neutral-300"
                             >
                               {activity.className} ({activity.subjectName}) -{" "}
                               {formatDate(activity.timestamp)}
@@ -196,7 +204,7 @@ export default function ReportPage() {
                           ))}
                         </ul>
                       ) : (
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 dark:text-neutral-400">
                           No presentations
                         </span>
                       )}
@@ -207,7 +215,7 @@ export default function ReportPage() {
                           {report.feedback.map((activity, index) => (
                             <li
                               key={`feed-${report.student.id}-${index}`}
-                              className="text-sm text-gray-700"
+                              className="text-sm text-gray-700 dark:text-neutral-300"
                             >
                               {activity.className} ({activity.subjectName}) -{" "}
                               {formatDate(activity.timestamp)}
@@ -215,7 +223,7 @@ export default function ReportPage() {
                           ))}
                         </ul>
                       ) : (
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 dark:text-neutral-400">
                           No feedback given
                         </span>
                       )}
@@ -226,7 +234,7 @@ export default function ReportPage() {
                 <tr>
                   <td
                     colSpan={3}
-                    className="px-6 py-4 text-center text-sm text-gray-500"
+                    className="px-6 py-4 text-center text-sm text-gray-500 dark:text-neutral-400"
                   >
                     No data available for the selected subject
                   </td>

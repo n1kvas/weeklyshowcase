@@ -47,7 +47,7 @@ const DiceRoll: React.FC<DiceRollProps> = ({ onComplete, duration = 2000 }) => {
       transition={{ duration: 0.5 }}
     >
       <motion.h2
-        className="text-2xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-600"
+        className="text-2xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-400 dark:to-secondary-500"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
@@ -101,13 +101,13 @@ const DiceRoll: React.FC<DiceRollProps> = ({ onComplete, duration = 2000 }) => {
         transition={{ delay: 0.3, duration: 0.5 }}
       >
         <motion.p
-          className="text-lg text-neutral-600"
+          className="text-lg text-neutral-600 dark:text-neutral-300"
           animate={isRolling ? { opacity: [0.7, 1, 0.7] } : { opacity: 1 }}
           transition={{ repeat: isRolling ? Infinity : 0, duration: 1.5 }}
         >
           Randomly selecting next presenter...
         </motion.p>
-        <p className="text-sm text-neutral-500 mt-2">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
           {isRolling ? "Shuffling through students..." : "Student found!"}
         </p>
       </motion.div>

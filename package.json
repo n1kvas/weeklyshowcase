@@ -12,6 +12,7 @@
     "@types/node": "^20.12.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "firebase": "^11.7.3",
     "framer-motion": "^11.0.3",
     "next": "15.3.2",
     "react": "^19.0.0",
