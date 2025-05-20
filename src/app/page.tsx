@@ -81,7 +81,7 @@ export default function Home() {
   };
 
   const handleViewReports = (id: string) => {
-    router.push(`/reports/${id}`);
+    router.push(`/reports?subject=${id}`);
   };
 
   // If user is not authenticated, display welcome page

@@ -2,9 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { FaArrowLeft, FaChartBar } from "react-icons/fa";
 import { Student, Subject, StudentActivity } from "../../models/Types";
-import { getSubjects, getStudentActivities } from "../../utils/storage";
+import {
+  getSubjects,
+  getStudentActivities,
+  addStudentActivity,
+} from "../../utils/firestoreService";
+import { useAuth } from "../../utils/authContext";
 
 type StudentReport = {
   student: Student;
@@ -13,6 +19,9 @@ type StudentReport = {
 };
 
 export default function ReportPage() {
+  const { userData } = useAuth();
+  const searchParams = useSearchParams();
+  const subjectParam = searchParams.get("subject");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [studentReports, setStudentReports] = useState<StudentReport[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
@@ -22,44 +31,123 @@ export default function ReportPage() {
     setHasMounted(true);
   }, []);
 
+  // Set the selected subject from URL parameter when subjects are loaded
   useEffect(() => {
-    if (!hasMounted) return;
+    if (subjectParam && subjects.some((s) => s.id === subjectParam)) {
+      setSelectedSubject(subjectParam);
+    }
+  }, [subjectParam, subjects]);
 
-    const loadedSubjects = getSubjects();
-    setSubjects(loadedSubjects);
+  useEffect(() => {
+    if (!hasMounted || !userData) return;
 
-    // Build the report data
-    const allStudents: Student[] = [];
+    const fetchData = async () => {
+      // Log the teacher ID for debugging
+      console.log("Loading data for teacher ID:", userData.uid);
 
-    // Collect all students
-    loadedSubjects.forEach((subject) => {
-      if (subject.students) {
-        subject.students.forEach((student) => {
-          if (!allStudents.some((s) => s.id === student.id)) {
-            allStudents.push(student);
-          }
-        });
-      }
-    });
+      const loadedSubjects = await getSubjects(userData.uid); // Use userData.uid as teacherId
+      console.log("Loaded subjects:", loadedSubjects);
+      setSubjects(loadedSubjects);
 
-    // Create reports for each student
-    const reports = allStudents.map((student) => {
-      const presentations = getStudentActivities(
-        student.id,
-        undefined,
-        "presentation"
+      // Build the report data
+      const allStudents: Student[] = [];
+
+      // Collect all students
+      loadedSubjects.forEach((subject) => {
+        if (subject.students) {
+          subject.students.forEach((student) => {
+            if (!allStudents.some((s) => s.id === student.id)) {
+              allStudents.push(student);
+            }
+          });
+        }
+      });
+
+      console.log(
+        "All collected students:",
+        allStudents.map((s) => s.name)
       );
-      const feedback = getStudentActivities(student.id, undefined, "feedback");
 
-      return {
-        student,
-        presentations,
-        feedback,
-      };
-    });
+      // Add some test activities to Firestore for debugging
+      // You can remove this after testing
+      try {
+        const { addStudentActivity } = await import(
+          "../../utils/firestoreService"
+        );
 
-    setStudentReports(reports);
-  }, [hasMounted]);
+        // Only add test data if no activities exist
+        if (allStudents.length > 0 && loadedSubjects.length > 0) {
+          const firstStudent = allStudents[0];
+          const firstSubject = loadedSubjects[0];
+          const firstClass = firstSubject.classes?.[0];
+
+          if (firstClass) {
+            console.log("Adding sample activity for:", firstStudent.name);
+
+            // Add a sample presentation activity
+            await addStudentActivity({
+              studentId: firstStudent.id,
+              classId: firstClass.id,
+              subjectId: firstSubject.id,
+              activityType: "presentation",
+              timestamp: Date.now(),
+              className: firstClass.name,
+              subjectName: firstSubject.name,
+            });
+
+            // Add a sample feedback activity
+            await addStudentActivity({
+              studentId: firstStudent.id,
+              classId: firstClass.id,
+              subjectId: firstSubject.id,
+              activityType: "feedback",
+              timestamp: Date.now(),
+              className: firstClass.name,
+              subjectName: firstSubject.name,
+            });
+
+            console.log("Added sample activities to Firestore");
+          }
+        }
+      } catch (error) {
+        console.error("Error adding sample activities:", error);
+      }
+
+      // Create reports for each student
+      const reports = await Promise.all(
+        allStudents.map(async (student) => {
+          console.log(
+            `Activities for student ${student.name} (${student.id}):`
+          );
+
+          const presentations = await getStudentActivities(
+            student.id,
+            undefined,
+            "presentation"
+          );
+          const feedback = await getStudentActivities(
+            student.id,
+            undefined,
+            "feedback"
+          );
+
+          console.log("Presentations:", presentations);
+          console.log("Feedback:", feedback);
+
+          return {
+            student,
+            presentations,
+            feedback,
+          };
+        })
+      );
+
+      console.log("Final studentReports to be set:", reports);
+      setStudentReports(reports);
+    };
+
+    fetchData();
+  }, [hasMounted, userData]);
 
   // Filter reports by selected subject
   const filteredReports =
@@ -67,13 +155,38 @@ export default function ReportPage() {
       ? studentReports
       : studentReports
           .map((report) => {
+            // Log to debug the filtering
+            console.log("Selected subject:", selectedSubject);
+            if (report.presentations.length > 0) {
+              console.log(
+                "First presentation subjectId:",
+                report.presentations[0].subjectId
+              );
+            }
+
+            // Enhanced filtering - try matching by subjectId or by subjectName that contains the selected subject's name
+            const selectedSubjectObj = subjects.find(
+              (s) => s.id === selectedSubject
+            );
+            const selectedSubjectName = selectedSubjectObj
+              ? selectedSubjectObj.name
+              : "";
+
             return {
               ...report,
               presentations: report.presentations.filter(
-                (p) => p.subjectId === selectedSubject
+                (p) =>
+                  p.subjectId === selectedSubject ||
+                  (selectedSubjectName &&
+                    p.subjectName &&
+                    p.subjectName.includes(selectedSubjectName))
               ),
               feedback: report.feedback.filter(
-                (f) => f.subjectId === selectedSubject
+                (f) =>
+                  f.subjectId === selectedSubject ||
+                  (selectedSubjectName &&
+                    f.subjectName &&
+                    f.subjectName.includes(selectedSubjectName))
               ),
             };
           })
@@ -139,20 +252,6 @@ export default function ReportPage() {
               </option>
             ))}
           </select>
-        </div>
-
-        {/* Subject Report Links */}
-        <div className="flex flex-wrap gap-2">
-          {subjects.map((subject) => (
-            <Link
-              key={subject.id}
-              href={`/reports/${subject.id}`}
-              className="inline-flex items-center px-3 py-2 border border-blue-300 bg-blue-50 text-blue-700 dark:border-primary-700 dark:bg-primary-900 dark:text-primary-300 rounded-md text-sm hover:bg-blue-100 dark:hover:bg-primary-800 transition-colors"
-            >
-              <FaChartBar className="mr-2" />
-              {subject.name} Report
-            </Link>
-          ))}
         </div>
       </div>
 
