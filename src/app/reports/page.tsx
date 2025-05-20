@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FaArrowLeft, FaChartBar } from "react-icons/fa";
@@ -18,7 +18,8 @@ type StudentReport = {
   feedback: StudentActivity[];
 };
 
-export default function ReportPage() {
+// New component to contain the logic using useSearchParams
+function ReportContent() {
   const { userData } = useAuth();
   const searchParams = useSearchParams();
   const subjectParam = searchParams.get("subject");
@@ -200,149 +201,117 @@ export default function ReportPage() {
     return new Date(timestamp).toLocaleDateString();
   };
 
+  // Handle subject selection change
+  const handleSubjectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedSubject(event.target.value);
+  };
+
   if (!hasMounted) {
-    return (
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="h-8 bg-gray-300 dark:bg-neutral-700 rounded w-64 animate-pulse"></div>
-        </div>
-      </main>
-    );
+    return <div>Loading reports...</div>; // Or any other loading indicator
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="mb-6">
+    <div className="container mx-auto p-4 min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+      <div className="flex items-center justify-between mb-6">
         <Link
-          href="/"
-          className="inline-flex items-center text-blue-500 hover:text-blue-700 dark:text-primary-400 dark:hover:text-primary-300"
+          href="/dashboard"
+          className="flex items-center text-blue-400 hover:text-blue-300 transition-colors"
         >
-          <FaArrowLeft className="mr-2" /> Back to Home
+          <FaArrowLeft className="mr-2" />
+          Back to Dashboard
         </Link>
+        <h1 className="text-4xl font-bold text-center flex-grow text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
+          <FaChartBar className="inline-block mr-3 text-pink-500" />
+          Student Reports
+        </h1>
       </div>
 
-      <h1 className="text-3xl font-bold mb-6 dark:text-white">
-        Student Participation Report
-      </h1>
-
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <label
-            htmlFor="subject-filter"
-            className="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1"
-          >
-            Filter by Subject:
-          </label>
-          <select
-            id="subject-filter"
-            className="w-full md:w-64 p-2 border border-gray-300 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white rounded-md"
-            value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e.target.value)}
-          >
-            <option value="all" className="dark:bg-neutral-800 dark:text-white">
-              All Subjects
+      <div className="mb-6">
+        <label
+          htmlFor="subject-filter"
+          className="block text-lg font-medium text-gray-300 mb-2"
+        >
+          Filter by Subject:
+        </label>
+        <select
+          id="subject-filter"
+          value={selectedSubject}
+          onChange={handleSubjectChange}
+          className="w-full md:w-1/3 bg-slate-700 border border-slate-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5"
+        >
+          <option value="all">All Subjects</option>
+          {subjects.map((subject) => (
+            <option key={subject.id} value={subject.id}>
+              {subject.name}
             </option>
-            {subjects.map((subject) => (
-              <option
-                key={subject.id}
-                value={subject.id}
-                className="dark:bg-neutral-800 dark:text-white"
-              >
-                {subject.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          ))}
+        </select>
       </div>
 
-      <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-md p-4 mb-8">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
-            <thead className="bg-gray-50 dark:bg-neutral-700">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-neutral-400 uppercase tracking-wider"
-                >
-                  Student Name
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-neutral-400 uppercase tracking-wider"
-                >
-                  Presentations
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-neutral-400 uppercase tracking-wider"
-                >
-                  Feedback Given
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-700">
-              {filteredReports.length > 0 ? (
-                filteredReports.map((report) => (
-                  <tr key={report.student.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-neutral-100">
-                        {report.student.name}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {report.presentations.length > 0 ? (
-                        <ul className="list-disc pl-5 space-y-1">
-                          {report.presentations.map((activity, index) => (
-                            <li
-                              key={`pres-${report.student.id}-${index}`}
-                              className="text-sm text-gray-700 dark:text-neutral-300"
-                            >
-                              {activity.className} ({activity.subjectName}) -{" "}
-                              {formatDate(activity.timestamp)}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-sm text-gray-500 dark:text-neutral-400">
-                          No presentations
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {report.feedback.length > 0 ? (
-                        <ul className="list-disc pl-5 space-y-1">
-                          {report.feedback.map((activity, index) => (
-                            <li
-                              key={`feed-${report.student.id}-${index}`}
-                              className="text-sm text-gray-700 dark:text-neutral-300"
-                            >
-                              {activity.className} ({activity.subjectName}) -{" "}
-                              {formatDate(activity.timestamp)}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-sm text-gray-500 dark:text-neutral-400">
-                          No feedback given
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-6 py-4 text-center text-sm text-gray-500 dark:text-neutral-400"
-                  >
-                    No data available for the selected subject
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {filteredReports.length === 0 ? (
+        <div className="text-center text-gray-400 py-10">
+          <p className="text-2xl">No report data available.</p>
+          <p>
+            This might be because there are no students, no activities, or the
+            selected filter has no matching data.
+          </p>
         </div>
-      </div>
-    </main>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredReports.map(({ student, presentations, feedback }) => (
+            <div
+              key={student.id}
+              className="bg-slate-800 shadow-xl rounded-lg p-6 hover:shadow-2xl transition-shadow duration-300"
+            >
+              <h2 className="text-2xl font-semibold mb-3 text-purple-400">
+                {student.name}
+              </h2>
+              <div className="mb-4">
+                <h3 className="text-lg font-medium text-pink-400 mb-1">
+                  Presentations:
+                </h3>
+                {presentations.length > 0 ? (
+                  <ul className="list-disc list-inside text-gray-300 space-y-1">
+                    {presentations.map((p, index) => (
+                      <li key={index}>
+                        {p.subjectName} - {p.className} (
+                        {formatDate(p.timestamp)})
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500">No presentations recorded.</p>
+                )}
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-pink-400 mb-1">
+                  Feedback Given:
+                </h3>
+                {feedback.length > 0 ? (
+                  <ul className="list-disc list-inside text-gray-300 space-y-1">
+                    {feedback.map((f, index) => (
+                      <li key={index}>
+                        {f.subjectName} - {f.className} (
+                        {formatDate(f.timestamp)})
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500">No feedback recorded.</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ReportPage() {
+  return (
+    <Suspense fallback={<div>Loading report page...</div>}>
+      <ReportContent />
+    </Suspense>
   );
 }
