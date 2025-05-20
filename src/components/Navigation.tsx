@@ -20,14 +20,16 @@ const Navigation: React.FC = () => {
     <nav className="flex items-center justify-between">
       <Link href="/" className="flex items-center">
         <div className="relative mr-2 w-10 h-10">
-          <Image
-            src="/logo.svg"
-            alt="Weekly Showcase Logo"
-            width={40}
-            height={40}
-            className="object-contain"
-            priority
-          />
+          <div className="relative w-full h-full">
+            <Image
+              src="/logo.svg"
+              alt="Weekly Showcase Logo"
+              width={40}
+              height={40}
+              className="object-contain"
+              priority
+            />
+          </div>
         </div>
         <span className="text-xl font-bold text-primary-600">
           Weekly Showcase
