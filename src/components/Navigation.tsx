@@ -23,7 +23,8 @@ const Navigation: React.FC = () => {
           <Image
             src="/logo.svg"
             alt="Weekly Showcase Logo"
-            fill
+            width={40}
+            height={40}
             className="object-contain"
             priority
           />
