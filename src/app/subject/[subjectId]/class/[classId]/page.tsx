@@ -425,6 +425,7 @@ export default function ClassPage({
               </p>
             )}
             <Timer
+              key={TimerType.PRESENTATION}
               duration={TIMER_CONFIGURATIONS[TimerType.PRESENTATION]}
               timerType={TimerType.PRESENTATION}
               onComplete={handlePresentationComplete}
@@ -490,6 +491,7 @@ export default function ClassPage({
               </p>
             )}
             <Timer
+              key={TimerType.STUDENT_FEEDBACK}
               duration={TIMER_CONFIGURATIONS[TimerType.STUDENT_FEEDBACK]}
               timerType={TimerType.STUDENT_FEEDBACK}
               onComplete={handleStudentFeedbackComplete}
@@ -498,6 +500,7 @@ export default function ClassPage({
           </div>
         );
       case WorkflowState.LECTURER_FEEDBACK:
+        console.log("RENDERING LECTURER_FEEDBACK state");
         return (
           <div className="text-center">
             <h2 className="text-2xl font-bold mb-4 dark:text-white">
@@ -512,6 +515,7 @@ export default function ClassPage({
               </p>
             )}
             <Timer
+              key={TimerType.LECTURER_FEEDBACK}
               duration={TIMER_CONFIGURATIONS[TimerType.LECTURER_FEEDBACK]}
               timerType={TimerType.LECTURER_FEEDBACK}
               onComplete={handleLecturerFeedbackComplete}
@@ -533,6 +537,7 @@ export default function ClassPage({
               </p>
             )}
             <Timer
+              key={TimerType.REFLECTION}
               duration={TIMER_CONFIGURATIONS[TimerType.REFLECTION]}
               timerType={TimerType.REFLECTION}
               onComplete={handleReflectionComplete}

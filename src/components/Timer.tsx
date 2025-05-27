@@ -23,12 +23,14 @@ const Timer: React.FC<TimerProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const doubleClickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const clickCount = useRef(0);
+  const onCompleteCalledRef = useRef(false);
 
   // Reset timer when duration changes
   useEffect(() => {
     setTimeLeft(duration);
     setIsRunning(autoStart);
     setIsCompleted(false);
+    onCompleteCalledRef.current = false;
   }, [duration, autoStart]);
 
   // Timer logic
@@ -58,8 +60,9 @@ const Timer: React.FC<TimerProps> = ({
 
   // Handle completion separately from the timer
   useEffect(() => {
-    if (isCompleted) {
+    if (isCompleted && !onCompleteCalledRef.current) {
       console.log(`Timer (${timerType}) completed. Triggering callback.`);
+      onCompleteCalledRef.current = true;
       // Use a small delay to ensure UI updates before callback
       const timeoutId = setTimeout(() => {
         onComplete();
