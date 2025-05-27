@@ -428,7 +428,7 @@ export default function ClassPage({
               duration={TIMER_CONFIGURATIONS[TimerType.PRESENTATION]}
               timerType={TimerType.PRESENTATION}
               onComplete={handlePresentationComplete}
-              autoStart={true}
+              autoStart={false}
             />
           </div>
         );
@@ -493,7 +493,7 @@ export default function ClassPage({
               duration={TIMER_CONFIGURATIONS[TimerType.STUDENT_FEEDBACK]}
               timerType={TimerType.STUDENT_FEEDBACK}
               onComplete={handleStudentFeedbackComplete}
-              autoStart={true}
+              autoStart={false}
             />
           </div>
         );
@@ -536,7 +536,7 @@ export default function ClassPage({
               duration={TIMER_CONFIGURATIONS[TimerType.REFLECTION]}
               timerType={TimerType.REFLECTION}
               onComplete={handleReflectionComplete}
-              autoStart={true}
+              autoStart={false}
             />
           </div>
         );
